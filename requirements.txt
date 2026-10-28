@@ -1,0 +1,11 @@
+streamlit>=1.50
+numpy
+pandas
+matplotlib
+Pillow
+opencv-python-headless
+tensorflow
+streamlit-webrtc
+av
+imageio
+imageio-ffmpeg
