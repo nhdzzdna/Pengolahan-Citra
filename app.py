@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
-import cnn
 from operations import GROUPS, PARAMS, apply_pipeline, limit_size, steps_label
 from histogram import (plot_histograms, plot_from_counts, counts, describe,
                        stats_table, render_live)
@@ -162,7 +161,7 @@ def show_analysis(before, after):
     st.dataframe(stats_table(before, after), hide_index=True, width="stretch")
 
 
-tab_img, tab_vid, tab_cnn, tab_cam = st.tabs(["🖼️ Gambar", "🎞️ Video", "🧠 CNN", "📷 Kamera"])
+tab_img, tab_vid, tab_cam = st.tabs(["🖼️ Gambar", "🎞️ Video", "📷 Kamera"])
 original = processed = None
 
 # ---------------------------------------------------------------- tab gambar
@@ -282,44 +281,6 @@ with tab_vid:
             ax.grid(True, alpha=0.2)
             ax.legend()
             st.pyplot(fig, clear_figure=True)
-
-# ---------------------------------------------------------------- tab CNN
-with tab_cnn:
-    st.write("Bagian ini menjalankan klasifikasi MobileNetV2 (ImageNet) pada gambar dari tab Gambar, "
-             "sebelum dan sesudah pengolahan, untuk melihat apakah perubahan distribusi piksel "
-             "memengaruhi prediksi.")
-    if original is None:
-        st.info("Unggah gambar pada tab Gambar terlebih dahulu.")
-    else:
-        if st.button("Bandingkan klasifikasi CNN: asli dan hasil"):
-            try:
-                pa, pb = cnn.classify(original), cnn.classify(processed)
-                c1, c2 = st.columns(2)
-                c1.markdown("**Prediksi gambar asli**")
-                c2.markdown(f"**Prediksi gambar hasil ({label})**")
-                for (la, sa), (lb, sb) in zip(pa, pb):
-                    c1.write(f"{la}: {sa * 100:.2f}%")
-                    c2.write(f"{lb}: {sb * 100:.2f}%")
-                st.subheader("Histogram gambar yang masuk ke CNN")
-                show_analysis(original, processed)
-            except ImportError:
-                st.error("TensorFlow belum terpasang. Jalankan: python -m pip install tensorflow")
-            except Exception as exc:
-                st.error(f"CNN belum berhasil dijalankan. Periksa koneksi internet untuk unduhan "
-                         f"bobot model. Detail: {exc}")
-
-        if st.button("Tampilkan Grad-CAM"):
-            try:
-                c1, c2 = st.columns(2)
-                c1.image(cnn.gradcam(original), caption="Grad-CAM gambar asli", width="stretch")
-                c2.image(cnn.gradcam(processed), caption=f"Grad-CAM gambar hasil ({label})",
-                         width="stretch")
-                st.caption("Area merah dan kuning adalah bagian gambar yang paling memengaruhi "
-                           "prediksi kelas teratas.")
-            except ImportError:
-                st.error("TensorFlow belum terpasang. Jalankan: python -m pip install tensorflow")
-            except Exception as exc:
-                st.error(f"Grad-CAM belum berhasil dijalankan. Detail: {exc}")
 
 # ---------------------------------------------------------------- tab kamera
 class LiveProcessor(VideoProcessorBase):
