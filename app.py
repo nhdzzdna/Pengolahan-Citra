@@ -16,9 +16,77 @@ from operations import GROUPS, PARAMS, apply_pipeline, limit_size, steps_label
 from histogram import (plot_histograms, plot_from_counts, counts, describe,
                        stats_table, render_live)
 
-st.set_page_config(page_title="ImageLab", layout="wide")
-st.title("ImageLab")
-st.caption("Aplikasi pengolahan citra digital dengan histogram, video, kamera, dan analisis CNN")
+st.set_page_config(page_title="ImageLab", page_icon="🖼️", layout="wide")
+
+CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+html, body, .stApp, .stApp :is(p, h1, h2, h3, h4, h5, h6, label, button, input, textarea, li) {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+}
+[data-testid="stIconMaterial"], .material-symbols-rounded, span[class*="material"] {
+    font-family: 'Material Symbols Rounded' !important;
+    font-feature-settings: 'liga' !important;
+}
+.stApp { background: #F6FBF8 !important; color-scheme: light; }
+.block-container { padding-top: 2rem; padding-bottom: 3rem; max-width: 1200px; }
+header[data-testid="stHeader"] { background: transparent !important; }
+.stApp :is(p, span, label, li, small, h1, h2, h3, h4, h5, h6) { color: #23343A !important; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] * { color: #55696F !important; }
+.hero { padding: 1.4rem 1.6rem; border-radius: 18px; margin-bottom: 1.2rem;
+        background: linear-gradient(135deg, #E3F5EC 0%, #FDF1E7 100%); border: 1px solid #CFE5DB; }
+.hero h1 { margin: 0; font-size: 1.9rem; font-weight: 700; color: #1F4B43 !important; }
+.hero p { margin: .3rem 0 0 0; font-size: .95rem; color: #3F5B57 !important; }
+[data-testid="stSidebar"] { background: #FFFFFF !important; border-right: 1px solid #DCEDE4; }
+[data-testid="stSidebar"] h2 { font-size: 1.05rem; font-weight: 700; }
+[data-testid="stSlider"] [data-testid="stSliderThumbValue"],
+[data-testid="stSlider"] [data-testid="stTickBarMin"],
+[data-testid="stSlider"] [data-testid="stTickBarMax"] { color: #23343A !important; }
+[data-testid="stSlider"] [role="slider"] { background: #2E8B78 !important; box-shadow: none !important; }
+.stButton > button, .stDownloadButton > button {
+    border-radius: 10px; border: 1px solid #A9D3C3; background: #FFFFFF !important;
+    transition: all .15s ease; }
+.stButton > button p, .stDownloadButton > button p { color: #23343A !important; font-weight: 500; }
+.stButton > button:hover, .stDownloadButton > button:hover { border-color: #2E8B78; background: #E8F4EE !important; }
+.stButton > button[kind="primary"] { background: #2E8B78 !important; border-color: #2E8B78; }
+.stButton > button[kind="primary"] p { color: #FFFFFF !important; }
+.stButton > button[kind="primary"]:hover { background: #247060 !important; }
+.stTabs [data-baseweb="tab-list"] { gap: 6px; border-bottom: 1px solid #CFE5DB; }
+.stTabs [data-baseweb="tab"] { border-radius: 10px 10px 0 0; padding: 8px 18px; background: transparent; }
+.stTabs [data-baseweb="tab"] p { color: #3F5B57 !important; font-weight: 500; }
+.stTabs [aria-selected="true"] { background: #E3F5EC; }
+.stTabs [aria-selected="true"] p { color: #1F6E5C !important; font-weight: 700; }
+div[data-baseweb="select"], div[data-baseweb="select"] div {
+    background-color: #FFFFFF !important; color: #23343A !important; }
+div[data-baseweb="select"] > div { border: 1px solid #A9D3C3 !important; border-radius: 10px !important; }
+div[data-baseweb="select"] svg { fill: #55696F !important; }
+[data-baseweb="popover"], [data-baseweb="popover"] ul, [data-baseweb="popover"] li, [data-baseweb="menu"] {
+    background: #FFFFFF !important; color: #23343A !important; }
+[data-baseweb="popover"] li * { color: #23343A !important; }
+[data-baseweb="popover"] li:hover, [data-baseweb="popover"] li[aria-selected="true"] { background: #E8F4EE !important; }
+[data-testid="stAlert"], [data-testid="stAlert"] > div { background: #E6F4F8 !important; border-radius: 12px; }
+[data-testid="stAlert"] { border: 1px solid #BFDDE6; }
+[data-testid="stAlert"] * { color: #1F4650 !important; }
+[data-testid="stExpander"] { background: #FFFFFF; border: 1px solid #CFE5DB; border-radius: 12px; }
+[data-testid="stExpander"] summary { background: #FFFFFF; }
+[data-testid="stExpander"] summary * { color: #23343A !important; }
+[data-testid="stFileUploaderDropzone"] { background: #FFFFFF !important; border: 2px dashed #A9D3C3; border-radius: 14px; }
+[data-testid="stFileUploaderDropzone"] * { color: #3F5B57 !important; }
+[data-testid="stFileUploaderDropzone"] button { background: #FFFFFF !important; border: 1px solid #A9D3C3; }
+[data-testid="stCameraInput"] * { color: #23343A !important; }
+[data-testid="stCameraInput"] button { background: #FFFFFF !important; }
+[data-testid="stImage"] img { border-radius: 12px; border: 1px solid #DCEDE4; }
+[data-testid="stDataFrame"] { border-radius: 12px; overflow: hidden; border: 1px solid #DCEDE4; background: #FFFFFF; }
+[data-baseweb="radio"] *, [data-baseweb="checkbox"] * { color: #23343A !important; }
+[data-testid="stProgress"] * { color: #23343A !important; }
+</style>
+"""
+st.markdown(CSS, unsafe_allow_html=True)
+st.markdown(
+    '<div class="hero"><h1>ImageLab</h1>'
+    '<p>Aplikasi pengolahan citra digital dengan histogram, video, kamera, dan analisis CNN</p></div>',
+    unsafe_allow_html=True,
+)
 
 if "pipeline" not in st.session_state:
     st.session_state.pipeline = []
@@ -46,10 +114,11 @@ def load_image(file):
 
 # ---------------------------------------------------------------- sidebar
 with st.sidebar:
-    st.header("Operasi")
+    st.header("1. Pilih operasi")
     group = st.selectbox("Kelompok", list(GROUPS.keys()))
     op = st.selectbox("Operasi", GROUPS[group])
 
+    st.header("2. Atur parameter")
     params = {}
     specs = PARAMS.get(op, [])
     for key, label, lo, hi, default, step in specs:
@@ -59,22 +128,23 @@ with st.sidebar:
 
     st.checkbox("Terapkan operasi yang sedang dipilih", key="apply_current")
     c1, c2 = st.columns(2)
-    c1.button("Tambah ke pipeline", on_click=add_step, args=(op, params))
-    c2.button("Reset pipeline", on_click=reset_pipeline)
+    c1.button("Tambah", on_click=add_step, args=(op, params),
+              type="primary", width="stretch")
+    c2.button("Reset", on_click=reset_pipeline, width="stretch")
 
-    st.subheader("Pipeline")
+    st.header("3. Pipeline")
     if not st.session_state.pipeline:
-        st.caption("Pipeline masih kosong.")
+        st.caption("Pipeline masih kosong. Klik Tambah untuk menyusun urutan operasi.")
     for i, s in enumerate(st.session_state.pipeline):
         a, b = st.columns([4, 1])
         a.write(f"{i + 1}. {s['op']}")
-        b.button("Hapus", key=f"del{i}", on_click=remove_step, args=(i,))
+        b.button("✕", key=f"del{i}", on_click=remove_step, args=(i,))
 
     st.divider()
-    st.header("Histogram")
-    hist_mode = st.radio("Mode", ["RGB", "Grayscale"], horizontal=True)
-    hist_log = st.checkbox("Skala logaritmik", value=False)
-    hist_cdf = st.checkbox("Tampilkan CDF", value=False)
+    with st.expander("Pengaturan histogram"):
+        hist_mode = st.radio("Mode", ["RGB", "Grayscale"], horizontal=True)
+        hist_log = st.checkbox("Skala logaritmik", value=False)
+        hist_cdf = st.checkbox("Tampilkan CDF", value=False)
 
 steps = list(st.session_state.pipeline)
 if st.session_state.apply_current:
@@ -92,7 +162,7 @@ def show_analysis(before, after):
     st.dataframe(stats_table(before, after), hide_index=True, width="stretch")
 
 
-tab_img, tab_vid, tab_cnn, tab_cam = st.tabs(["Gambar", "Video", "CNN", "Kamera"])
+tab_img, tab_vid, tab_cnn, tab_cam = st.tabs(["🖼️ Gambar", "🎞️ Video", "🧠 CNN", "📷 Kamera"])
 original = processed = None
 
 # ---------------------------------------------------------------- tab gambar
