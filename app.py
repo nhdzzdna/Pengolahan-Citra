@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 from PIL import Image, ImageOps
 from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
-from operations import GROUPS, PARAMS, apply_pipeline, limit_size, steps_label
+from operations import PARAMS, apply_pipeline, limit_size, steps_label
 from histogram import (plot_histograms, plot_from_counts, counts, describe,
                        stats_table, render_live)
 
@@ -114,8 +114,8 @@ def load_image(file):
 # ---------------------------------------------------------------- sidebar
 with st.sidebar:
     st.header("1. Pilih operasi")
-    group = st.selectbox("Kelompok", list(GROUPS.keys()))
-    op = st.selectbox("Operasi", GROUPS[group])
+    # group = st.selectbox("Kelompok", list(GROUPS.keys()))
+    op = st.selectbox("Operasi", list(PARAMS.keys()))
 
     st.header("2. Atur parameter")
     params = {}
