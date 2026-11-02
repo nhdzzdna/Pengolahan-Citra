@@ -13,7 +13,7 @@ from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
 
 from operations import PARAMS, apply_pipeline, limit_size, steps_label
 from histogram import (plot_histograms, plot_from_counts, counts, describe,
-                       stats_table, render_live)
+                       stats_table, _panel, render_live)
 
 st.set_page_config(page_title="ImageLab", page_icon="🖼️", layout="wide")
 
@@ -353,12 +353,34 @@ class LiveProcessor(VideoProcessorBase):
         self.steps = []
         self.before = None
         self.after = None
+        self.n = 0
+        self.panels = None
 
     def recv(self, frame):
         rgb = frame.to_ndarray(format="rgb24")
         out = apply_pipeline(rgb, self.steps)
+        out = np.clip(out, 0, 255).astype(np.uint8) 
+        if out.ndim == 2:
+            out = np.stack([out] * 3, axis=-1)
+        h, w = rgb.shape[:2]
+        if out.shape[:2] != (h, w):
+            out = cv2.resize(out, (w, h))
         self.before, self.after = rgb, out
-        return av.VideoFrame.from_ndarray(out, format="rgb24")
+
+        top = np.hstack([_label_frame(rgb, "Asli"), _label_frame(out, "Hasil")])
+
+        # histogram dihitung tiap 3 frame agar stream tetap lancar
+        if self.panels is None or self.panels.shape[1] != 2 * w or self.n % 6 == 0:
+            self.panels = np.hstack([
+                _panel(rgb, w, 220, "Histogram asli"),
+                _panel(out, w, 220, "Histogram hasil"),
+            ])
+        self.n += 1
+
+        combined = np.vstack([top, self.panels])
+        ch, cw = combined.shape[:2]
+        combined = np.ascontiguousarray(combined[:ch - ch % 2, :cw - cw % 2])
+        return av.VideoFrame.from_ndarray(combined, format="rgb24")
 
 
 # Bagian kamera sengaja diletakkan paling akhir karena mode langsung memakai loop.
@@ -383,10 +405,5 @@ with tab_cam:
             media_stream_constraints={"video": {"width": 640, "height": 480}, "audio": False},
             rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
         )
-        placeholder = st.empty()
-        while ctx.state.playing and ctx.video_processor:
-            vp = ctx.video_processor
-            vp.steps = steps
-            if vp.before is not None and vp.after is not None:
-                placeholder.image(render_live(vp.before, vp.after), width="stretch")
-            time.sleep(0.3)
+        if ctx.video_processor:
+            ctx.video_processor.steps = steps
