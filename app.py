@@ -83,7 +83,7 @@ div[data-baseweb="select"] svg { fill: #55696F !important; }
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(
     '<div class="hero"><h1>ImageLab</h1>'
-    '<p>Aplikasi pengolahan citra digital dengan histogram, video, kamera, dan analisis CNN</p></div>',
+    '<p>Aplikasi pengolahan citra digital dengan histogram, video dan kamera</p></div>',
     unsafe_allow_html=True,
 )
 
@@ -194,16 +194,36 @@ with tab_img:
                 st.download_button("Unduh PNG", buf.getvalue(), "imagelab_hasil.png", "image/png")
 
 # ---------------------------------------------------------------- tab video
-def process_video(path, steps, progress, step=5, max_w=640):
+def _label_frame(frame, text):
+    """Tambahkan label teks di pojok kiri atas frame."""
+    out = frame.copy()
+    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
+    cv2.rectangle(out, (0, 0), (tw + 16, th + 16), (0, 0, 0), -1)
+    cv2.putText(out, text, (8, th + 8), cv2.FONT_HERSHEY_SIMPLEX, 0.65,
+                (255, 255, 255), 2, cv2.LINE_AA)
+    return out
+
+
+def process_video(path, steps, progress, max_w=640):
+    """Proses video dan buat tiga output: video hasil, video gabungan
+    (asli+hasil+histogram bergerak), serta statistik agregat."""
+    from histogram import _panel  # panel histogram ringan berbasis OpenCV
+
     cap = cv2.VideoCapture(path)
     fps = cap.get(cv2.CAP_PROP_FPS) or 25
     total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
-    out_path = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
-    writer = imageio.get_writer(out_path, fps=fps, codec="libx264",
-                                pixelformat="yuv420p", macro_block_size=1)
+
+    result_path = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+    combined_path = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+
+    result_writer = imageio.get_writer(result_path, fps=fps, codec="libx264",
+                                       pixelformat="yuv420p", macro_block_size=1)
+    combined_writer = None  # dibuat setelah ukuran frame pertama diketahui
+
     cb, ca = np.zeros((4, 256)), np.zeros((4, 256))
     mean_b, mean_a, idxs = [], [], []
     i = 0
+    sample_step = 5
     while True:
         ok, frame = cap.read()
         if not ok:
@@ -212,8 +232,34 @@ def process_video(path, steps, progress, step=5, max_w=640):
         h, w = rgb.shape[:2]
         rgb = np.ascontiguousarray(rgb[:h - h % 2, :w - w % 2])
         out = apply_pipeline(rgb, steps)
-        writer.append_data(out)
-        if i % step == 0:
+        result_writer.append_data(out)
+
+        # --- bangun frame gabungan: [asli | hasil] di atas, [histogram] di bawah ---
+        fh, fw = rgb.shape[:2]
+        labeled_orig = _label_frame(rgb, "Asli")
+        labeled_result = _label_frame(out, "Hasil")
+        top_row = np.hstack([labeled_orig, labeled_result])
+
+        hist_h = max(fh // 3, 120)
+        hist_panel = np.hstack([
+            _panel(rgb, fw, hist_h, "Histogram asli"),
+            _panel(out, fw, hist_h, "Histogram hasil"),
+        ])
+
+        combined_frame = np.vstack([top_row, hist_panel])
+        ch, cw = combined_frame.shape[:2]
+        combined_frame = np.ascontiguousarray(
+            combined_frame[:ch - ch % 2, :cw - cw % 2]
+        )
+
+        if combined_writer is None:
+            combined_writer = imageio.get_writer(
+                combined_path, fps=fps, codec="libx264",
+                pixelformat="yuv420p", macro_block_size=1,
+            )
+        combined_writer.append_data(combined_frame)
+
+        if i % sample_step == 0:
             cb += counts(rgb)
             ca += counts(out)
             mean_b.append(float(rgb.mean()))
@@ -221,15 +267,19 @@ def process_video(path, steps, progress, step=5, max_w=640):
             idxs.append(i)
         i += 1
         progress.progress(min(i / total, 1.0))
+
     cap.release()
-    writer.close()
-    return out_path, cb, ca, idxs, mean_b, mean_a
+    result_writer.close()
+    if combined_writer is not None:
+        combined_writer.close()
+    return result_path, combined_path, cb, ca, idxs, mean_b, mean_a
 
 
 with tab_vid:
     vf = st.file_uploader("Unggah video", type=["mp4", "avi", "mov", "mkv"], key="vid")
     if vf is None:
-        st.info("Unggah video untuk melihat pratinjau per frame beserta histogramnya.")
+        st.info("Unggah video untuk memulai. Pilih operasi pada panel kiri, lalu klik **Proses seluruh video** "
+                "untuk melihat perbandingan video asli dan hasil beserta histogram bergeraknya.")
     else:
         if st.session_state.get("video_name") != vf.name:
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".mp4")
@@ -237,45 +287,60 @@ with tab_vid:
             tmp.close()
             st.session_state["video_path"] = tmp.name
             st.session_state["video_name"] = vf.name
+            # reset hasil proses jika video baru di-upload
+            for k in ["vid_combined_data", "vid_result_data", "vid_cb", "vid_ca",
+                       "vid_idxs", "vid_mean_b", "vid_mean_a"]:
+                st.session_state.pop(k, None)
         vpath = st.session_state["video_path"]
 
         cap = cv2.VideoCapture(vpath)
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         fps = cap.get(cv2.CAP_PROP_FPS)
-        st.caption(f"Jumlah frame: {total_frames}, FPS: {fps:.1f}")
-        idx = st.slider("Pilih frame untuk pratinjau", 0, max(total_frames - 1, 0), 0)
-        cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-        ok, frame = cap.read()
         cap.release()
+        st.caption(f"Jumlah frame: {total_frames}, FPS: {fps:.1f}")
 
-        if ok:
-            rgb = limit_size(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            out = apply_pipeline(rgb, steps)
-            c1, c2 = st.columns(2)
-            c1.image(rgb, caption="Frame asli", width="stretch")
-            c2.image(out, caption=f"Frame hasil: {label}", width="stretch")
-            show_analysis(rgb, out)
-        else:
-            st.error("Frame tidak dapat dibaca. Coba format video lain.")
-
-        st.divider()
-        st.caption("Pemrosesan penuh memperkecil video ke lebar maksimum 640 piksel agar tidak terlalu lama.")
+        st.caption("Pemrosesan memperkecil video ke lebar maksimum 640 piksel agar tidak terlalu lama.")
         if st.button("Proses seluruh video"):
             bar = st.progress(0.0)
-            result_path, cb, ca, idxs, mean_b, mean_a = process_video(vpath, steps, bar)
+            result_path, combined_path, cb, ca, idxs, mean_b, mean_a = \
+                process_video(vpath, steps, bar)
+            with open(combined_path, "rb") as fh:
+                st.session_state["vid_combined_data"] = fh.read()
             with open(result_path, "rb") as fh:
-                data = fh.read()
-            st.video(data)
-            st.download_button("Unduh video hasil", data, "imagelab_video.mp4", "video/mp4")
+                st.session_state["vid_result_data"] = fh.read()
+            st.session_state["vid_cb"] = cb
+            st.session_state["vid_ca"] = ca
+            st.session_state["vid_idxs"] = idxs
+            st.session_state["vid_mean_b"] = mean_b
+            st.session_state["vid_mean_a"] = mean_a
 
+        # ---- tampilkan hasil jika sudah diproses ----
+        if "vid_combined_data" in st.session_state:
+            st.subheader("Perbandingan video dengan histogram bergerak")
+            st.caption("Tekan play — video asli dan hasil diputar bersamaan, "
+                       "histogram di bawahnya bergerak mengikuti setiap frame.")
+            st.video(st.session_state["vid_combined_data"])
+
+            st.download_button("Unduh video hasil (tanpa histogram)",
+                               st.session_state["vid_result_data"],
+                               "imagelab_video.mp4", "video/mp4")
+
+            st.divider()
+
+            # ---- histogram agregat ----
             st.subheader("Histogram agregat seluruh video")
-            st.pyplot(plot_from_counts(cb, ca, hist_mode, hist_log, hist_cdf, marker),
-                      clear_figure=True)
+            st.pyplot(plot_from_counts(
+                st.session_state["vid_cb"], st.session_state["vid_ca"],
+                hist_mode, hist_log, hist_cdf, marker
+            ), clear_figure=True)
 
+            # ---- rata-rata intensitas per frame ----
             st.subheader("Rata-rata intensitas per frame")
             fig, ax = plt.subplots(figsize=(10, 3))
-            ax.plot(idxs, mean_b, "--", label="Video asli")
-            ax.plot(idxs, mean_a, label="Video hasil")
+            ax.plot(st.session_state["vid_idxs"], st.session_state["vid_mean_b"],
+                    "--", label="Video asli")
+            ax.plot(st.session_state["vid_idxs"], st.session_state["vid_mean_a"],
+                    label="Video hasil")
             ax.set_xlabel("Nomor frame")
             ax.set_ylabel("Rata-rata intensitas")
             ax.grid(True, alpha=0.2)

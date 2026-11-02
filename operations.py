@@ -1,6 +1,14 @@
 import numpy as np
 import cv2
 
+# GROUPS = {
+#     ["Brightness", "Contrast", "Gamma Correction",
+#     "Histogram Equalization", "Negative", "Grayscale", "Saturation",
+#     "Flip Horizontal", "Flip Vertical", "Rotation",
+#     "Sharpening", "Gaussian Blur", "Median Filter",
+#     "Thresholding", "Otsu Thresholding", "Edge Detection"],
+# }
+
 # (kunci, label, minimum, maksimum, nilai awal, langkah)
 PARAMS = {
     # Penyesuaian Cahaya & Warna
