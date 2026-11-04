@@ -1,4 +1,4 @@
-# 🖼️ ImageLab
+# ✨ Pikselia
 ### Aplikasi Pengolahan Citra Digital dengan Histogram, Video, dan Kamera
 
 ---
@@ -103,7 +103,7 @@ ImageLab menyediakan berbagai operasi pengolahan citra yang dikelompokkan berdas
 
 | Operasi | Deskripsi |
 |---|---|
-| Gaussian Blur | Menghaluskan citra dengan mengurangi detail dan noise menggunakan filter Gaussian. |
+| Gaussian Smoothing | Menghaluskan citra dengan mengurangi detail dan noise menggunakan filter Gaussian. |
 | Sharpening | Mempertajam detail dan tepi citra menggunakan teknik unsharp masking. |
 
 ### 4. Deteksi Tepi dan Segmentasi
