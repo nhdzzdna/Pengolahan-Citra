@@ -79,17 +79,24 @@ def apply_operation(arr, op, p):
 
     # Filter Dasar & Penajaman
     if op == "Gaussian Smoothing":
+        # Mengubah nilai radius dari slider menjadi ukuran kernel ganjil (agar ada titik pusat yang pas)
         k = 2 * int(p.get("radius", 2)) + 1
+        # Menerapkan fungsi konvolusi Gaussian bawaan OpenCV
         return cv2.GaussianBlur(arr, (k, k), 0)
 
     if op == "Sharpening":
+       # Mengambil nilai kekuatan penajaman dari slider 
         s = p.get("sharpness", 1.0)
+        # Menerapkan Gaussian Blur untuk mendapatkan versi buram dari citra
         blur = cv2.GaussianBlur(arr, (0, 0), 1.5)
+        # Menerapkan operasi penajaman dengan menggabungkan citra asli dan citra buram
         return cv2.addWeighted(arr, 1 + s, blur, -s, 0)
 
     # Deteksi Tepi & Segmentasi
     if op == "Thresholding":
+        # Mengubah citra warna menjadi citra Grayscale (derajat keabuan)
         gray = cv2.cvtColor(arr, cv2.COLOR_RGB2GRAY)
+        # Menerapkan fungsi thresholding OpenCV dengan nilai ambang (T) dari slider
         _, b = cv2.threshold(gray, int(p.get("threshold", 127)), 255, cv2.THRESH_BINARY)
         return _gray3(b)
 
