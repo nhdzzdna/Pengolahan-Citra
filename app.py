@@ -15,7 +15,7 @@ from operations import PARAMS, apply_pipeline, limit_size, steps_label
 from histogram import (plot_histograms, plot_from_counts, counts, describe,
                        stats_table, _panel, render_live)
 
-st.set_page_config(page_title="ImageLab", page_icon="🖼️", layout="wide")
+st.set_page_config(page_title="Pikselia", page_icon="✨", layout="wide")
 
 CSS = """
 <style>
@@ -82,7 +82,7 @@ div[data-baseweb="select"] svg { fill: #55696F !important; }
 """
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(
-    '<div class="hero"><h1>ImageLab</h1>'
+    '<div class="hero"><h1>Pikselia</h1>'
     '<p>Aplikasi pengolahan citra digital dengan histogram, video dan kamera</p></div>',
     unsafe_allow_html=True,
 )
