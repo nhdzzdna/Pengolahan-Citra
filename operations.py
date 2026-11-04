@@ -1,13 +1,6 @@
 import numpy as np
 import cv2
 
-# GROUPS = {
-#     ["Brightness", "Contrast", "Gamma Correction",
-#     "Histogram Equalization", "Negative", "Grayscale", "Saturation",
-#     "Flip Horizontal", "Flip Vertical", "Rotation",
-#     "Sharpening", "Gaussian Blur", "Median Filter",
-#     "Thresholding", "Otsu Thresholding", "Edge Detection"],
-# }
 
 # (kunci, label, minimum, maksimum, nilai awal, langkah)
 PARAMS = {
@@ -24,7 +17,7 @@ PARAMS = {
     "Flip Vertical": [],
     
     # Filter Dasar & Penajaman
-    "Gaussian Blur": [("blur_radius", "Radius blur", 1, 15, 2, 1)],
+    "Gaussian Smoothing": [("radius", "Radius penghalusan", 1, 15, 2, 1)],
     "Sharpening": [("sharpness", "Kekuatan penajaman", 0.0, 3.0, 1.0, 0.1)],
     
     # Deteksi Tepi & Segmentasi
@@ -85,8 +78,8 @@ def apply_operation(arr, op, p):
         return np.ascontiguousarray(arr[::-1])
 
     # Filter Dasar & Penajaman
-    if op == "Gaussian Blur":
-        k = 2 * int(p.get("blur_radius", 2)) + 1
+    if op == "Gaussian Smoothing":
+        k = 2 * int(p.get("radius", 2)) + 1
         return cv2.GaussianBlur(arr, (k, k), 0)
 
     if op == "Sharpening":
@@ -119,7 +112,6 @@ def apply_operation(arr, op, p):
         return cv2.filter2D(arr, -1, kernel)
 
     return arr.copy()
-
 
 def apply_pipeline(arr, steps):
     out = arr
